@@ -566,7 +566,7 @@ with tab2:
                 </div>
             </div>""", unsafe_allow_html=True)
 
-        with st.expander("📝 Ringkasan untuk BAB IV Skripsi"):
+        with st.expander("📝 Ringkasan untuk Pemilik Toko"):
             best = rd.iloc[0]
             sup_b, conf_b, lift_b = float(best["support"]), float(best["confidence"]), float(best["lift"])
             st.markdown(f"""

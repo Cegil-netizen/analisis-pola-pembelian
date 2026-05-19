@@ -1,5 +1,5 @@
 """
-Analisis FP-Growth — Universal
+Analisis FP-Growth
 Mendukung 2 format CSV:
   • Format Laporan Kasir (struk kasir Toko Yunita dll)
   • Format CSV Biasa (kolom: id_transaksi/tanggal + nama_produk/nama_barang)
@@ -25,115 +25,402 @@ st.set_page_config(
 )
 
 # ─────────────────────────────────────────────────────────────
-# CSS
+# CSS — Light Theme: Clean Modern dengan aksen Teal/Emerald
 # ─────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif; }
-.stApp { background: #0f1117; }
-[data-testid="stSidebar"] { background: #161b27 !important; border-right: 1px solid #1e2535; }
-[data-testid="stSidebar"] * { color: #c8d0e0 !important; }
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Sora', sans-serif;
+}
+
+/* ── App background */
+.stApp {
+    background: linear-gradient(160deg, #f0fdf9 0%, #f8faff 40%, #fdf4ff 100%);
+    min-height: 100vh;
+}
+
+/* ── Sidebar */
+[data-testid="stSidebar"] {
+    background: #ffffff !important;
+    border-right: 1.5px solid #e2f0ec !important;
+    box-shadow: 4px 0 24px rgba(16,185,129,0.06) !important;
+}
+[data-testid="stSidebar"] * { color: #334155 !important; }
+[data-testid="stSidebar"] h3 { color: #0f766e !important; font-weight: 700 !important; }
+[data-testid="stSidebar"] .stMarkdown strong { color: #0f766e !important; }
+
+/* ── Hero banner */
 .hero-banner {
-    background: linear-gradient(135deg, #0d1b2a 0%, #1a2744 50%, #0d1b2a 100%);
-    border: 1px solid #1e3a5f; border-radius: 16px;
-    padding: 28px 36px; margin-bottom: 24px; position: relative; overflow: hidden;
+    background: linear-gradient(135deg, #0f766e 0%, #0891b2 50%, #6d28d9 100%);
+    border-radius: 20px;
+    padding: 36px 42px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(15,118,110,0.25), 0 4px 16px rgba(15,118,110,0.15);
 }
 .hero-banner::before {
-    content:''; position:absolute; top:-60px; right:-60px; width:200px; height:200px;
-    background:radial-gradient(circle,rgba(59,130,246,.15) 0%,transparent 70%); border-radius:50%;
+    content: '';
+    position: absolute; top: -80px; right: -80px;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%);
+    border-radius: 50%;
 }
-.hero-title { font-size:26px; font-weight:700; color:#f0f4ff; margin:0 0 4px; letter-spacing:-.5px; }
-.hero-sub   { font-size:13px; color:#6b7fa3; margin:0; }
+.hero-banner::after {
+    content: '';
+    position: absolute; bottom: -40px; left: 30%;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(255,255,255,0.07) 0%, transparent 70%);
+    border-radius: 50%;
+}
 .hero-badge {
-    display:inline-block; background:#1e3a5f; color:#60a5fa; border:1px solid #2d5a8e;
-    border-radius:20px; padding:3px 12px; font-size:10px; font-weight:600;
-    letter-spacing:.5px; margin-bottom:10px; text-transform:uppercase;
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    color: #ffffff;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    backdrop-filter: blur(10px);
 }
-.metric-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
+.hero-title {
+    font-family: 'Fraunces', serif;
+    font-size: 32px;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0 0 6px;
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+}
+.hero-sub {
+    font-size: 13px;
+    color: rgba(255,255,255,0.75);
+    margin: 0;
+    font-weight: 400;
+}
+.hero-dots {
+    position: absolute; right: 42px; top: 50%; transform: translateY(-50%);
+    display: grid; grid-template-columns: repeat(6,1fr); gap: 7px; opacity: 0.18;
+}
+.hero-dot {
+    width: 6px; height: 6px; background: white; border-radius: 50%;
+}
+
+/* ── Metric grid */
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+}
 .metric-card {
-    background:#161b27; border:1px solid #1e2535; border-radius:12px; padding:18px; transition:border-color .2s;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 20px 22px;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
 }
-.metric-card:hover { border-color:#2d4a7a; }
-.metric-label { font-size:10px; font-weight:600; color:#4a5568; text-transform:uppercase; letter-spacing:.8px; margin-bottom:6px; }
-.metric-value { font-size:26px; font-weight:700; color:#f0f4ff; font-family:'JetBrains Mono',monospace; line-height:1; }
-.metric-sub   { font-size:11px; color:#4a5568; margin-top:3px; }
-.metric-card.blue  { border-left:3px solid #3b82f6; }
-.metric-card.green { border-left:3px solid #10b981; }
-.metric-card.amber { border-left:3px solid #f59e0b; }
-.metric-card.coral { border-left:3px solid #ef4444; }
-.section-header { display:flex; align-items:center; gap:10px; margin:24px 0 14px; }
-.section-title  { font-size:15px; font-weight:600; color:#d1d9ef; margin:0; }
-.section-line   { flex:1; height:1px; background:#1e2535; }
-.section-count  {
-    font-size:10px; font-weight:600; background:#1e2d4a; color:#60a5fa;
-    border-radius:20px; padding:2px 10px; font-family:'JetBrains Mono',monospace;
+.metric-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 16px 16px 0 0;
 }
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(0,0,0,0.10);
+    border-color: #cbd5e1;
+}
+.metric-card.teal::before  { background: linear-gradient(90deg,#0d9488,#0891b2); }
+.metric-card.green::before { background: linear-gradient(90deg,#10b981,#34d399); }
+.metric-card.amber::before { background: linear-gradient(90deg,#f59e0b,#fbbf24); }
+.metric-card.purple::before{ background: linear-gradient(90deg,#8b5cf6,#a78bfa); }
+.metric-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.9px;
+    margin-bottom: 8px;
+}
+.metric-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: #0f172a;
+    font-family: 'DM Mono', monospace;
+    line-height: 1;
+}
+.metric-sub {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+/* ── Section header */
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 28px 0 16px;
+}
+.section-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+    white-space: nowrap;
+}
+.section-line {
+    flex: 1;
+    height: 1.5px;
+    background: linear-gradient(90deg, #e2e8f0 0%, transparent 100%);
+}
+.section-count {
+    font-size: 10px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #0d9488, #0891b2);
+    color: white;
+    border-radius: 20px;
+    padding: 3px 11px;
+    font-family: 'DM Mono', monospace;
+    box-shadow: 0 2px 8px rgba(13,148,136,0.3);
+}
+
+/* ── Success bar */
 .success-bar {
-    background:#052e16; border:1px solid #166534; border-radius:10px;
-    padding:11px 16px; color:#4ade80; font-size:13px; font-weight:500;
-    display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+    border: 1.5px solid #6ee7b7;
+    border-radius: 12px;
+    padding: 12px 18px;
+    color: #065f46;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 12px rgba(16,185,129,0.1);
 }
-.format-badge { display:inline-block; border-radius:6px; padding:2px 10px; font-size:11px; font-weight:600; font-family:'JetBrains Mono',monospace; }
-.format-kasir { background:#1e3a5f; color:#60a5fa; }
-.format-biasa { background:#1a3028; color:#34d399; }
+.format-badge {
+    display: inline-block;
+    border-radius: 8px;
+    padding: 3px 11px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+}
+.format-kasir { background: #dbeafe; color: #1d4ed8; }
+.format-biasa { background: #d1fae5; color: #065f46; }
+
+/* ── Rule cards */
 .rule-card {
-    background:#161b27; border:1px solid #1e2535; border-radius:10px;
-    padding:13px 16px; margin-bottom:7px; display:flex; align-items:center;
-    gap:10px; flex-wrap:wrap; font-size:13px;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
-.rule-arrow { color:#3b82f6; font-size:16px; font-weight:700; }
-.rule-item  { color:#d1d9ef; font-weight:500; }
-.rule-badges { margin-left:auto; display:flex; gap:7px; flex-wrap:wrap; }
-.badge { border-radius:6px; padding:2px 8px; font-size:10px; font-weight:600; font-family:'JetBrains Mono',monospace; }
-.badge-sup  { background:#1e3a5f; color:#60a5fa; }
-.badge-conf { background:#1a3028; color:#34d399; }
-.badge-lift { background:#3a2010; color:#fb923c; }
-.step-box { background:#161b27; border:1px solid #1e2535; border-radius:12px; padding:18px; text-align:center; }
-.step-icon { font-size:26px; margin-bottom:8px; }
-.step-text { color:#4a5568; font-size:11px; margin-top:3px; }
+.rule-card:hover {
+    border-color: #6ee7b7;
+    box-shadow: 0 4px 20px rgba(13,148,136,0.12);
+    transform: translateX(2px);
+}
+.rule-arrow { color: #0d9488; font-size: 18px; font-weight: 800; }
+.rule-item  { color: #0f172a; font-weight: 600; }
+.rule-badges { margin-left: auto; display: flex; gap: 7px; flex-wrap: wrap; }
+.badge { border-radius: 8px; padding: 3px 9px; font-size: 10px; font-weight: 700; font-family: 'DM Mono', monospace; }
+.badge-sup  { background: #dbeafe; color: #1e40af; }
+.badge-conf { background: #d1fae5; color: #065f46; }
+.badge-lift { background: #fef3c7; color: #92400e; }
+
+/* ── Step cards */
+.step-box {
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 24px;
+    text-align: center;
+    transition: all 0.2s;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+.step-box:hover {
+    border-color: #a7f3d0;
+    box-shadow: 0 8px 28px rgba(13,148,136,0.12);
+    transform: translateY(-2px);
+}
+.step-icon { font-size: 28px; margin-bottom: 10px; }
+.step-text { color: #94a3b8; font-size: 11px; margin-top: 4px; font-weight: 500; }
+
+/* ── Info box */
 .info-box {
-    background:#0c1929; border:1px solid #1e3a5f; border-radius:10px;
-    padding:14px 18px; font-size:12px; color:#6b9fd4; margin-bottom:16px; line-height:1.8;
+    background: linear-gradient(135deg, #f0fdfa 0%, #f0f9ff 100%);
+    border: 1.5px solid #99f6e4;
+    border-radius: 12px;
+    padding: 16px 20px;
+    font-size: 12.5px;
+    color: #0f4c41;
+    margin-bottom: 20px;
+    line-height: 1.9;
+    box-shadow: 0 2px 12px rgba(13,148,136,0.08);
 }
-.info-box strong { color:#93c5fd; }
-[data-testid="stFileUploader"] { background:#161b27 !important; border:2px dashed #1e3a5f !important; border-radius:12px !important; }
-.stSlider > div > div > div > div { background:#3b82f6 !important; }
+.info-box strong { color: #0d9488; }
+.info-box code { background: #ccfbf1; color: #0f766e; padding: 1px 6px; border-radius: 4px; font-family: 'DM Mono', monospace; font-size: 11px; }
+
+/* ── Streamlit overrides */
+[data-testid="stFileUploader"] {
+    background: #f8fffd !important;
+    border: 2px dashed #6ee7b7 !important;
+    border-radius: 12px !important;
+}
+.stSlider > div > div > div > div { background: #0d9488 !important; }
+
 .stDownloadButton > button {
-    background:#1e3a5f !important; color:#60a5fa !important; border:1px solid #2d5a8e !important;
-    border-radius:8px !important; font-family:'Plus Jakarta Sans',sans-serif !important;
-    font-weight:600 !important; font-size:12px !important; padding:7px 14px !important;
+    background: linear-gradient(135deg, #0d9488, #0891b2) !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-family: 'Sora', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    padding: 8px 16px !important;
+    box-shadow: 0 4px 14px rgba(13,148,136,0.3) !important;
+    transition: all 0.2s !important;
 }
-.stDownloadButton > button:hover { background:#2d5a8e !important; border-color:#3b82f6 !important; }
+.stDownloadButton > button:hover {
+    box-shadow: 0 6px 20px rgba(13,148,136,0.45) !important;
+    transform: translateY(-1px) !important;
+}
+
 .stButton > button {
-    background:#1d4ed8 !important; color:#fff !important; border:none !important;
-    border-radius:8px !important; font-family:'Plus Jakarta Sans',sans-serif !important;
-    font-weight:600 !important; padding:10px 24px !important; width:100% !important;
+    background: linear-gradient(135deg, #0d9488, #0891b2) !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-family: 'Sora', sans-serif !important;
+    font-weight: 700 !important;
+    padding: 11px 24px !important;
+    width: 100% !important;
+    box-shadow: 0 4px 16px rgba(13,148,136,0.3) !important;
 }
-.stButton > button:hover { background:#1e40af !important; }
-.stTabs [data-baseweb="tab-list"] { background:transparent !important; border-bottom:1px solid #1e2535 !important; }
+.stButton > button:hover {
+    box-shadow: 0 8px 24px rgba(13,148,136,0.45) !important;
+    transform: translateY(-1px) !important;
+}
+
+/* ── Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    background: transparent !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+    gap: 4px !important;
+}
 .stTabs [data-baseweb="tab"] {
-    background:transparent !important; color:#4a5568 !important;
-    font-family:'Plus Jakarta Sans',sans-serif !important; font-weight:500 !important;
-    font-size:13px !important; padding:10px 18px !important; border:none !important;
+    background: transparent !important;
+    color: #94a3b8 !important;
+    font-family: 'Sora', sans-serif !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    padding: 10px 20px !important;
+    border: none !important;
+    border-radius: 8px 8px 0 0 !important;
+    transition: all 0.15s !important;
 }
-.stTabs [aria-selected="true"] { color:#60a5fa !important; border-bottom:2px solid #3b82f6 !important; }
+.stTabs [data-baseweb="tab"]:hover { color: #0d9488 !important; background: #f0fdfa !important; }
+.stTabs [aria-selected="true"] {
+    color: #0d9488 !important;
+    background: #f0fdfa !important;
+    border-bottom: 2.5px solid #0d9488 !important;
+}
+
+/* ── Dataframe */
 .dataframe thead tr th {
-    background:#1a2133 !important; color:#6b7fa3 !important; font-size:10px !important;
-    font-weight:600 !important; text-transform:uppercase !important; letter-spacing:.5px !important;
-    padding:9px 12px !important; border-bottom:1px solid #1e2535 !important;
+    background: #f8fafc !important;
+    color: #64748b !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.6px !important;
+    padding: 10px 14px !important;
+    border-bottom: 2px solid #e2e8f0 !important;
 }
-.dataframe tbody tr { background:#161b27 !important; }
-.dataframe tbody tr:nth-child(even) { background:#131720 !important; }
-.dataframe tbody tr:hover { background:#1c2340 !important; }
+.dataframe tbody tr { background: #ffffff !important; }
+.dataframe tbody tr:nth-child(even) { background: #f8fafc !important; }
+.dataframe tbody tr:hover { background: #f0fdfa !important; }
 .dataframe tbody tr td {
-    color:#c8d0e0 !important; padding:8px 12px !important;
-    border-bottom:1px solid #1a2030 !important; border-top:none !important;
-    border-left:none !important; border-right:none !important;
+    color: #334155 !important;
+    padding: 9px 14px !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    font-size: 13px !important;
 }
-::-webkit-scrollbar { width:5px; height:5px; }
-::-webkit-scrollbar-track { background:#0f1117; }
-::-webkit-scrollbar-thumb { background:#1e2535; border-radius:3px; }
+
+/* ── Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Expander */
+[data-testid="stExpander"] {
+    background: #ffffff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+}
+[data-testid="stExpander"] summary {
+    color: #334155 !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+}
+
+/* ── Warning / Info / Error */
+[data-testid="stAlert"] { border-radius: 10px !important; }
+
+/* ── Input */
+.stTextInput > div > div > input {
+    background: #ffffff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 10px !important;
+    color: #334155 !important;
+    font-family: 'Sora', sans-serif !important;
+    font-size: 13px !important;
+    padding: 8px 14px !important;
+}
+.stTextInput > div > div > input:focus {
+    border-color: #6ee7b7 !important;
+    box-shadow: 0 0 0 3px rgba(13,148,136,0.12) !important;
+}
+
+/* ── Selectbox */
+.stSelectbox > div > div {
+    background: #ffffff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 10px !important;
+    color: #334155 !important;
+}
+
+/* ── General text color override for light bg */
+p, span, label, div { color: #334155; }
+h1, h2, h3, h4 { color: #0f172a; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -158,19 +445,16 @@ def detect_format(file_bytes: bytes) -> str:
         lines = [l for l in teks.splitlines() if l.strip()]
         if not lines:
             return "biasa"
-        # Scan 40 baris pertama (file kasir sering dimulai dengan header toko)
         for line in lines[:40]:
             reader  = csv.reader(io.StringIO(line))
             row     = next(reader, [])
             cleaned = [v.strip() for v in row if v.strip()]
             if not cleaned:
                 continue
-            # Tanda 1: baris transaksi (No. urut kecil + tanggal dd/mm/yyyy)
             if (re.match(r"^\d{1,4}$", cleaned[0])
                     and len(cleaned) > 2
                     and re.match(r"^\d+/\d+/\d+$", cleaned[1])):
                 return "kasir"
-            # Tanda 2: baris item dengan satuan
             if any(s in cleaned for s in SATUAN_KASIR):
                 return "kasir"
         return "biasa"
@@ -225,7 +509,7 @@ def parse_kasir(file_bytes: bytes) -> pd.DataFrame:
 
 
 # ─────────────────────────────────────────────────────────────
-# PARSE CSV BIASA (otomatis deteksi kolom)
+# PARSE CSV BIASA
 # ─────────────────────────────────────────────────────────────
 def parse_biasa(file_bytes: bytes) -> tuple:
     for enc in ["utf-8-sig", "utf-8", "latin1"]:
@@ -238,7 +522,6 @@ def parse_biasa(file_bytes: bytes) -> tuple:
     df.columns = df.columns.str.strip()
     cols_lower = {c.lower().replace(" ", "_"): c for c in df.columns}
 
-    # Cari kolom produk
     kolom_produk = None
     for alias in ALIAS_PRODUK:
         if alias in cols_lower:
@@ -248,7 +531,6 @@ def parse_biasa(file_bytes: bytes) -> tuple:
         if str_cols:
             kolom_produk = max(str_cols, key=lambda c: df[c].str.len().mean())
 
-    # Cari kolom ID
     kolom_id, mode = None, "lainnya"
     for alias in ALIAS_ID:
         if alias in cols_lower:
@@ -396,25 +678,31 @@ Nama kolom dikenali otomatis:
 # ═════════════════════════════════════════════════════════════
 # MAIN
 # ═════════════════════════════════════════════════════════════
-st.markdown("""
+
+# ── Hero dots HTML
+dots_html = ''.join(['<div class="hero-dot"></div>'] * 24)
+
+st.markdown(f"""
 <div class="hero-banner">
     <div class="hero-badge">🛒 Data Mining · FP-Growth</div>
     <div class="hero-title">Analisis Pola Pembelian</div>
     <p class="hero-sub">Upload CSV laporan kasir atau data transaksi → analisis otomatis → download Excel</p>
+    <div class="hero-dots">{dots_html}</div>
 </div>
 """, unsafe_allow_html=True)
 
 if uploaded is None:
     c1, c2, c3 = st.columns(3)
     for col, icon, title, desc in [
-        (c1, "📤", "Upload File CSV", "Sidebar kiri — mendukung laporan kasir & CSV biasa"),
-        (c2, "⚙️", "Atur Parameter",  "Geser slider support & confidence sesuai kebutuhan"),
-        (c3, "📊", "Lihat Hasil",      "Tabel & aturan asosiasi muncul otomatis"),
+        (c1, "📤", "Upload File CSV",  "Sidebar kiri — mendukung laporan kasir & CSV biasa"),
+        (c2, "⚙️", "Atur Parameter",   "Geser slider support & confidence sesuai kebutuhan"),
+        (c3, "📊", "Lihat Hasil",       "Tabel & aturan asosiasi muncul otomatis"),
     ]:
         with col:
             st.markdown(f'<div class="step-box"><div class="step-icon">{icon}</div>'
-                        f'<div style="color:#c8d0e0;font-weight:600;font-size:13px">{title}</div>'
+                        f'<div style="color:#0f172a;font-weight:700;font-size:14px">{title}</div>'
                         f'<div class="step-text">{desc}</div></div>', unsafe_allow_html=True)
+
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("""<div class="info-box">
     💡 <strong>App ini mendukung 2 format CSV:</strong><br>
@@ -450,7 +738,7 @@ st.markdown(f"""<div class="success-bar">
     &nbsp;·&nbsp; <strong>{n_txn:,}</strong> transaksi
     &nbsp;·&nbsp; <strong>{n_prod:,}</strong> produk unik
     &nbsp;·&nbsp; <strong>{n_item:,}</strong> item
-    {f"&nbsp;·&nbsp; {period}" if has_date else ""}
+    {f"&nbsp;·&nbsp; 📅 {period}" if has_date else ""}
 </div>""", unsafe_allow_html=True)
 
 # ── Run FP-Growth
@@ -460,10 +748,10 @@ with st.spinner("🔄 Menjalankan FP-Growth…"):
 
 avg_item = basket["Produk"].apply(len).mean()
 st.markdown(f"""<div class="metric-grid">
-    {metric_card("Total Transaksi",    f"{n_txn:,}",      f"Periode: {period}", "blue")}
+    {metric_card("Total Transaksi",    f"{n_txn:,}",      f"Periode: {period}", "teal")}
     {metric_card("Frequent Itemset",   f"{len(fi):,}",     f"Min. support {min_support*100:.0f}%", "green")}
     {metric_card("Aturan Asosiasi",    f"{len(rules):,}",  f"Min. confidence {min_confidence*100:.0f}%", "amber")}
-    {metric_card("Avg Item/Transaksi", f"{avg_item:.1f}",  f"{n_prod:,} produk unik", "coral")}
+    {metric_card("Avg Item/Transaksi", f"{avg_item:.1f}",  f"{n_prod:,} produk unik", "purple")}
 </div>""", unsafe_allow_html=True)
 
 if fi.empty:
@@ -554,7 +842,7 @@ with tab2:
         st.markdown("**✨ Top 5 Aturan Terkuat (Lift Tertinggi)**")
         for _, row in rd.head(5).iterrows():
             lift_v = float(row["lift"])
-            icon   = "🔥" if lift_v>=2 else ("⚡" if lift_v>=1.5 else "·")
+            icon   = "🔥" if lift_v >= 2 else ("⚡" if lift_v >= 1.5 else "✓")
             st.markdown(f"""<div class="rule-card">
                 <span class="rule-item">{row['antecedents_str']}</span>
                 <span class="rule-arrow">→</span>

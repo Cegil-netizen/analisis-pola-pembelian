@@ -362,10 +362,16 @@ with st.sidebar:
     )
     st.markdown("---")
     st.markdown("**🎚️ Parameter FP-Growth**")
-    min_support    = st.slider("Minimum Support (%)",    1, 20, 2, 1,
-                               help="Makin kecil = makin banyak hasil.") / 1000
-    min_confidence = st.slider("Minimum Confidence (%)", 10, 90, 30, 5,
-                               help="Tingkat kepercayaan aturan.") / 100
+   # UNTUK ATUR MINIMUM SUPPORT DAN CONFIDENCE
+support_pct    = st.slider("Minimum Support (%)", 
+                            min_value=0.1, max_value=10.0, 
+                            value=0.5, step=0.1,
+                            help="Untuk 6.000+ transaksi, coba 0.1%–1%")
+min_support    = support_pct / 100
+
+min_confidence = st.slider("Minimum Confidence (%)", 
+                            10, 80, 20, 5,
+                            help="Disarankan 20%–40% untuk skripsi") / 100
     st.markdown("---")
     st.markdown("**🔍 Filter**")
     filter_itemset = st.selectbox("Tampilkan itemset",
@@ -461,7 +467,9 @@ with st.spinner("🔄 Menjalankan FP-Growth…"):
 avg_item = basket["Produk"].apply(len).mean()
 st.markdown(f"""<div class="metric-grid">
     {metric_card("Total Transaksi",    f"{n_txn:,}",      f"Periode: {period}", "blue")}
-    {metric_card("Frequent Itemset",   f"{len(fi):,}",     f"Min. support {min_support*100:.0f}%", "green")}
+    # Supaya tampil benar di kartu metrik
+    metric_card("Frequent Itemset", f"{len(fi):,}", 
+            f"Min. support {min_support*100:.1f}%", "green")
     {metric_card("Aturan Asosiasi",    f"{len(rules):,}",  f"Min. confidence {min_confidence*100:.0f}%", "amber")}
     {metric_card("Avg Item/Transaksi", f"{avg_item:.1f}",  f"{n_prod:,} produk unik", "coral")}
 </div>""", unsafe_allow_html=True)

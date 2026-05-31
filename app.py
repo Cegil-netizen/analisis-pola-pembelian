@@ -363,13 +363,13 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("**🎚️ Parameter FP-Growth**")
    # UNTUK ATUR MINIMUM SUPPORT DAN CONFIDENCE
-support_pct    = st.slider("Minimum Support (%)", 
+    support_pct    = st.slider("Minimum Support (%)", 
                             min_value=0.1, max_value=10.0, 
                             value=0.5, step=0.1,
                             help="Untuk 6.000+ transaksi, coba 0.1%–1%")
-min_support    = support_pct / 100
+    min_support    = support_pct / 100
 
-min_confidence = st.slider("Minimum Confidence (%)", 
+    min_confidence = st.slider("Minimum Confidence (%)", 
                             10, 80, 20, 5,
                             help="Disarankan 20%–40% untuk skripsi") / 100)
     st.markdown("---")

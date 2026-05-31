@@ -467,8 +467,7 @@ with st.spinner("🔄 Menjalankan FP-Growth…"):
 avg_item = basket["Produk"].apply(len).mean()
 st.markdown(f"""<div class="metric-grid">
     {metric_card("Total Transaksi",    f"{n_txn:,}",      f"Periode: {period}", "blue")}
-    # Supaya tampil benar di kartu metrik
-    metric_card("Frequent Itemset", f"{len(fi):,}", 
+    {metric_card("Frequent Itemset", f"{len(fi):,}", 
             f"Min. support {min_support*100:.1f}%", "green")
     {metric_card("Aturan Asosiasi",    f"{len(rules):,}",  f"Min. confidence {min_confidence*100:.0f}%", "amber")}
     {metric_card("Avg Item/Transaksi", f"{avg_item:.1f}",  f"{n_prod:,} produk unik", "coral")}

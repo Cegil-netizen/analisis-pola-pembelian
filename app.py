@@ -371,7 +371,7 @@ with st.sidebar:
 
     min_confidence = st.slider("Minimum Confidence (%)", 
                             10, 80, 20, 5,
-                            help="Disarankan 20%–40% untuk skripsi") / 100)
+                            help="Disarankan 20%–40% untuk skripsi") / 100
     st.markdown("---")
     st.markdown("**🔍 Filter**")
     filter_itemset = st.selectbox("Tampilkan itemset",

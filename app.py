@@ -363,7 +363,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("**🎚️ Parameter FP-Growth**")
     min_support    = st.slider("Minimum Support (%)",    1, 20, 2, 1,
-                               help="Makin kecil = makin banyak hasil.") / 100
+                               help="Makin kecil = makin banyak hasil.") / 1000
     min_confidence = st.slider("Minimum Confidence (%)", 10, 90, 30, 5,
                                help="Tingkat kepercayaan aturan.") / 100
     st.markdown("---")

@@ -1,8 +1,9 @@
 """
 Analisis FP-Growth — Universal
-Mendukung 2 format CSV:
-  • Format Laporan Kasir (struk kasir Toko Yunita dll)
-  • Format CSV Biasa (kolom: id_transaksi/tanggal + nama_produk/nama_barang)
+Mendukung berbagai format input:
+  • CSV — Format Laporan Kasir (struk kasir Toko Yunita dll)
+  • CSV — Format CSV Biasa (kolom: id_transaksi/tanggal + nama_produk/nama_barang)
+  • Excel (.xlsx/.xls) — Laporan Kasir maupun CSV Biasa, sheet dideteksi otomatis
 """
 
 import streamlit as st
@@ -77,6 +78,7 @@ html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif; }
 .format-badge { display:inline-block; border-radius:6px; padding:2px 10px; font-size:11px; font-weight:600; font-family:'JetBrains Mono',monospace; }
 .format-kasir { background:#1e3a5f; color:#60a5fa; }
 .format-biasa { background:#1a3028; color:#34d399; }
+.format-excel { background:#2a1e3a; color:#c084fc; }
 .rule-card {
     background:#161b27; border:1px solid #1e2535; border-radius:10px;
     padding:13px 16px; margin-bottom:7px; display:flex; align-items:center;
@@ -272,10 +274,68 @@ def parse_biasa(file_bytes: bytes) -> tuple:
 
 
 # ─────────────────────────────────────────────────────────────
+# KONVERSI EXCEL → CSV BYTES (agar bisa dipakai parser yang ada)
+# ─────────────────────────────────────────────────────────────
+def excel_to_csv_bytes(file_bytes: bytes, sheet_name=0) -> bytes:
+    """Baca sheet Excel, kembalikan sebagai CSV bytes (latin1)
+    agar kompatibel dengan parse_kasir() dan parse_biasa()."""
+    df = pd.read_excel(io.BytesIO(file_bytes), sheet_name=sheet_name,
+                        header=None, dtype=str)
+    df = df.fillna("")
+    buf = io.StringIO()
+    df.to_csv(buf, index=False, header=False)
+    return buf.getvalue().encode("latin1", errors="replace")
+
+
+def pilih_sheet_terbaik(file_bytes: bytes):
+    """Jika file Excel memiliki beberapa sheet, pilih sheet dengan
+    jumlah baris terbanyak (kemungkinan besar berisi data transaksi)."""
+    try:
+        xls = pd.ExcelFile(io.BytesIO(file_bytes))
+        if len(xls.sheet_names) == 1:
+            return xls.sheet_names[0]
+        best_rows, best_sheet = -1, xls.sheet_names[0]
+        for sn in xls.sheet_names:
+            try:
+                tmp = pd.read_excel(xls, sheet_name=sn, header=None, dtype=str)
+                if len(tmp) > best_rows:
+                    best_rows, best_sheet = len(tmp), sn
+            except Exception:
+                continue
+        return best_sheet
+    except Exception:
+        return 0
+
+
+# ─────────────────────────────────────────────────────────────
 # MASTER PARSER
 # ─────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner=False, max_entries=5)
 def parse_file(file_bytes: bytes, filename: str) -> tuple:
+    is_excel = filename.lower().endswith((".xlsx", ".xls"))
+
+    if is_excel:
+        sheet_to_use = pilih_sheet_terbaik(file_bytes)
+
+        try:
+            csv_bytes = excel_to_csv_bytes(file_bytes, sheet_name=sheet_to_use)
+        except Exception as e:
+            return pd.DataFrame(), "excel", f"Gagal membaca file Excel: {e}"
+
+        fmt = detect_format(csv_bytes)
+
+        if fmt == "kasir":
+            df   = parse_kasir(csv_bytes)
+            info = (f"Format Laporan Kasir terdeteksi (dari Excel, sheet "
+                    f"**{sheet_to_use}**) — parsing otomatis berhasil.")
+            return df, "kasir_excel", info
+        else:
+            df, kolom_id, kolom_produk, mode = parse_biasa(csv_bytes)
+            info = (f"Format CSV Biasa (dari Excel, sheet **{sheet_to_use}**) — "
+                    f"ID: **{kolom_id}** · Produk: **{kolom_produk}** · Mode: **{mode}**")
+            return df, "biasa_excel", info
+
+    # ── alur untuk file CSV ──
     fmt = detect_format(file_bytes)
     if fmt == "kasir":
         df   = parse_kasir(file_bytes)
@@ -355,10 +415,11 @@ def metric_card(label, value, sub, cls):
 with st.sidebar:
     st.markdown("### ⚙️ Pengaturan")
     st.markdown("---")
-    st.markdown("**📁 Upload File CSV**")
+    st.markdown("**📁 Upload File**")
     uploaded = st.file_uploader(
-        "Pilih file laporan atau data transaksi", type=["csv"],
-        help="Mendukung laporan kasir (struk) & CSV biasa dengan header",
+        "Pilih file laporan atau data transaksi",
+        type=["csv", "xlsx", "xls"],
+        help="Mendukung CSV (laporan kasir & CSV biasa) maupun Excel (.xlsx/.xls)",
     )
     st.markdown("---")
     st.markdown("**🎚️ Parameter FP-Growth**")
@@ -378,13 +439,17 @@ with st.sidebar:
                                   ["Semua","1-itemset saja","2-itemset saja","3-itemset ke atas"])
     min_lift = st.slider("Lift minimum", 1.0, 10.0, 1.0, 0.5)
     st.markdown("---")
-    with st.expander("📋 Format CSV yang didukung"):
+    with st.expander("📋 Format file yang didukung"):
         st.markdown("""
-**Format 1 — Laporan Kasir**
-File report dari mesin kasir. Tidak perlu diubah.
+**Format File**
+- `.csv` — Laporan Kasir maupun CSV Biasa
+- `.xlsx` / `.xls` — Excel, sheet dengan baris terbanyak dibaca otomatis
 
-**Format 2 — CSV Biasa**
-Contoh isi file:
+**Format 1 — Laporan Kasir**
+File report dari mesin kasir (CSV atau Excel). Tidak perlu diubah.
+
+**Format 2 — CSV/Excel Biasa**
+Contoh isi:
 ```
 id_transaksi,nama_produk
 T001,Rinso 1kg
@@ -406,14 +471,14 @@ st.markdown("""
 <div class="hero-banner">
     <div class="hero-badge">🛒 Data Mining · FP-Growth</div>
     <div class="hero-title">Analisis Pola Pembelian</div>
-    <p class="hero-sub">Upload CSV laporan kasir atau data transaksi → analisis otomatis → download Excel</p>
+    <p class="hero-sub">Upload CSV atau Excel laporan kasir / data transaksi → analisis otomatis → download Excel</p>
 </div>
 """, unsafe_allow_html=True)
 
 if uploaded is None:
     c1, c2, c3 = st.columns(3)
     for col, icon, title, desc in [
-        (c1, "📤", "Upload File CSV", "Sidebar kiri — mendukung laporan kasir & CSV biasa"),
+        (c1, "📤", "Upload File CSV/Excel", "Sidebar kiri — mendukung laporan kasir & data biasa"),
         (c2, "⚙️", "Atur Parameter",  "Geser slider support & confidence sesuai kebutuhan"),
         (c3, "📊", "Lihat Hasil",      "Tabel & aturan asosiasi muncul otomatis"),
     ]:
@@ -423,12 +488,13 @@ if uploaded is None:
                         f'<div class="step-text">{desc}</div></div>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("""<div class="info-box">
-    💡 <strong>App ini mendukung 2 format CSV:</strong><br>
-    &nbsp;&nbsp;① <strong>Laporan Kasir</strong> — file report dari mesin kasir (seperti Toko Yunita)<br>
-    &nbsp;&nbsp;② <strong>CSV Biasa</strong> — file dengan kolom header seperti <code>id_transaksi, nama_produk</code><br>
+    💡 <strong>App ini mendukung beberapa format file:</strong><br>
+    &nbsp;&nbsp;① <strong>CSV — Laporan Kasir</strong> — file report dari mesin kasir (seperti Toko Yunita)<br>
+    &nbsp;&nbsp;② <strong>CSV — Biasa</strong> — file dengan kolom header seperti <code>id_transaksi, nama_produk</code><br>
+    &nbsp;&nbsp;③ <strong>Excel (.xlsx/.xls)</strong> — Laporan Kasir maupun data biasa, sheet dideteksi otomatis<br>
     &nbsp;&nbsp;Format dideteksi <strong>otomatis</strong> — tidak perlu setting apapun.
     </div>""", unsafe_allow_html=True)
-    st.info("⬅️  Upload file CSV di sidebar untuk memulai analisis.", icon="💡")
+    st.info("⬅️  Upload file CSV atau Excel di sidebar untuk memulai analisis.", icon="💡")
     st.stop()
 
 # ── Parse file
@@ -437,11 +503,19 @@ with st.spinner("📂 Membaca file…"):
     df_raw, fmt, info_str = parse_file(file_bytes, uploaded.name)
 
 if df_raw.empty:
-    st.error("❌ File tidak dapat dibaca. Pastikan format CSV sesuai (lihat panduan di sidebar).")
+    st.error(f"❌ File tidak dapat dibaca. {info_str if 'Gagal' in info_str else ''}\n\n"
+             "Pastikan format file sesuai (lihat panduan di sidebar).")
     st.stop()
 
 # ── Status bar
-fmt_label, fmt_cls = ("Laporan Kasir","format-kasir") if fmt=="kasir" else ("CSV Biasa","format-biasa")
+fmt_map = {
+    "kasir":       ("Laporan Kasir (CSV)", "format-kasir"),
+    "biasa":       ("CSV Biasa",           "format-biasa"),
+    "kasir_excel": ("Laporan Kasir (Excel)", "format-excel"),
+    "biasa_excel": ("Excel Biasa",         "format-excel"),
+}
+fmt_label, fmt_cls = fmt_map.get(fmt, ("CSV Biasa","format-biasa"))
+
 n_txn  = df_raw["No_Faktur"].nunique()
 n_prod = df_raw["Nama_Barang"].nunique()
 n_item = len(df_raw)
@@ -458,6 +532,9 @@ st.markdown(f"""<div class="success-bar">
     &nbsp;·&nbsp; <strong>{n_item:,}</strong> item
     {f"&nbsp;·&nbsp; {period}" if has_date else ""}
 </div>""", unsafe_allow_html=True)
+
+if info_str:
+    st.caption(info_str)
 
 # ── Run FP-Growth
 with st.spinner("🔄 Menjalankan FP-Growth…"):

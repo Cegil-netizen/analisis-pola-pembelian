@@ -435,9 +435,6 @@ with st.sidebar:
     st.markdown("**🔍 Filter**")
     filter_itemset = st.selectbox("Tampilkan itemset",
                                   ["Semua","1-itemset saja","2-itemset saja","3-itemset ke atas"])
-    # ── slider min_confidence untuk filter aturan (ganti min_lift)
-    min_conf_filter = st.slider("Confidence minimum filter (%)", 0, 80, 0, 5,
-                                help="Filter tambahan confidence pada tabel aturan") / 100
     st.markdown("---")
     with st.expander("📋 Format file yang didukung"):
         st.markdown("""
@@ -604,8 +601,7 @@ with tab2:
     if rules.empty:
         st.warning(f"⚠️ Tidak ada aturan dengan confidence {min_confidence*100:.0f}%. Coba kurangi nilai di sidebar.")
     else:
-        # ── filter hanya berdasarkan confidence (tidak ada lift)
-        rd = rules[rules["confidence"] >= min_conf_filter].copy()
+        rd = rules.copy()
 
         cari2 = st.text_input("🔍 Cari dalam aturan", placeholder="Contoh: rinso, apollo…", key="s_r")
         if cari2:

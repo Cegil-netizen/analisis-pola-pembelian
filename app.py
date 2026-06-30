@@ -90,7 +90,6 @@ html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif; }
 .badge { border-radius:6px; padding:2px 8px; font-size:10px; font-weight:600; font-family:'JetBrains Mono',monospace; }
 .badge-sup  { background:#1e3a5f; color:#60a5fa; }
 .badge-conf { background:#1a3028; color:#34d399; }
-.badge-lift { background:#3a2010; color:#fb923c; }
 .step-box { background:#161b27; border:1px solid #1e2535; border-radius:12px; padding:18px; text-align:center; }
 .step-icon { font-size:26px; margin-bottom:8px; }
 .step-text { color:#4a5568; font-size:11px; margin-top:3px; }
@@ -160,19 +159,16 @@ def detect_format(file_bytes: bytes) -> str:
         lines = [l for l in teks.splitlines() if l.strip()]
         if not lines:
             return "biasa"
-        # Scan 40 baris pertama (file kasir sering dimulai dengan header toko)
         for line in lines[:40]:
             reader  = csv.reader(io.StringIO(line))
             row     = next(reader, [])
             cleaned = [v.strip() for v in row if v.strip()]
             if not cleaned:
                 continue
-            # Tanda 1: baris transaksi (No. urut kecil + tanggal dd/mm/yyyy)
             if (re.match(r"^\d{1,4}$", cleaned[0])
                     and len(cleaned) > 2
                     and re.match(r"^\d+/\d+/\d+$", cleaned[1])):
                 return "kasir"
-            # Tanda 2: baris item dengan satuan
             if any(s in cleaned for s in SATUAN_KASIR):
                 return "kasir"
         return "biasa"
@@ -227,7 +223,7 @@ def parse_kasir(file_bytes: bytes) -> pd.DataFrame:
 
 
 # ─────────────────────────────────────────────────────────────
-# PARSE CSV BIASA (otomatis deteksi kolom)
+# PARSE CSV BIASA
 # ─────────────────────────────────────────────────────────────
 def parse_biasa(file_bytes: bytes) -> tuple:
     for enc in ["utf-8-sig", "utf-8", "latin1"]:
@@ -240,7 +236,6 @@ def parse_biasa(file_bytes: bytes) -> tuple:
     df.columns = df.columns.str.strip()
     cols_lower = {c.lower().replace(" ", "_"): c for c in df.columns}
 
-    # Cari kolom produk
     kolom_produk = None
     for alias in ALIAS_PRODUK:
         if alias in cols_lower:
@@ -250,7 +245,6 @@ def parse_biasa(file_bytes: bytes) -> tuple:
         if str_cols:
             kolom_produk = max(str_cols, key=lambda c: df[c].str.len().mean())
 
-    # Cari kolom ID
     kolom_id, mode = None, "lainnya"
     for alias in ALIAS_ID:
         if alias in cols_lower:
@@ -274,11 +268,9 @@ def parse_biasa(file_bytes: bytes) -> tuple:
 
 
 # ─────────────────────────────────────────────────────────────
-# KONVERSI EXCEL → CSV BYTES (agar bisa dipakai parser yang ada)
+# EXCEL → CSV BYTES
 # ─────────────────────────────────────────────────────────────
 def excel_to_csv_bytes(file_bytes: bytes, sheet_name=0) -> bytes:
-    """Baca sheet Excel, kembalikan sebagai CSV bytes (latin1)
-    agar kompatibel dengan parse_kasir() dan parse_biasa()."""
     df = pd.read_excel(io.BytesIO(file_bytes), sheet_name=sheet_name,
                         header=None, dtype=str)
     df = df.fillna("")
@@ -288,8 +280,6 @@ def excel_to_csv_bytes(file_bytes: bytes, sheet_name=0) -> bytes:
 
 
 def pilih_sheet_terbaik(file_bytes: bytes):
-    """Jika file Excel memiliki beberapa sheet, pilih sheet dengan
-    jumlah baris terbanyak (kemungkinan besar berisi data transaksi)."""
     try:
         xls = pd.ExcelFile(io.BytesIO(file_bytes))
         if len(xls.sheet_names) == 1:
@@ -316,14 +306,12 @@ def parse_file(file_bytes: bytes, filename: str) -> tuple:
 
     if is_excel:
         sheet_to_use = pilih_sheet_terbaik(file_bytes)
-
         try:
             csv_bytes = excel_to_csv_bytes(file_bytes, sheet_name=sheet_to_use)
         except Exception as e:
             return pd.DataFrame(), "excel", f"Gagal membaca file Excel: {e}"
 
         fmt = detect_format(csv_bytes)
-
         if fmt == "kasir":
             df   = parse_kasir(csv_bytes)
             info = (f"Format Laporan Kasir terdeteksi (dari Excel, sheet "
@@ -335,7 +323,6 @@ def parse_file(file_bytes: bytes, filename: str) -> tuple:
                     f"ID: **{kolom_id}** · Produk: **{kolom_produk}** · Mode: **{mode}**")
             return df, "biasa_excel", info
 
-    # ── alur untuk file CSV ──
     fmt = detect_format(file_bytes)
     if fmt == "kasir":
         df   = parse_kasir(file_bytes)
@@ -348,7 +335,7 @@ def parse_file(file_bytes: bytes, filename: str) -> tuple:
 
 
 # ─────────────────────────────────────────────────────────────
-# FP-GROWTH
+# FP-GROWTH  (tanpa lift)
 # ─────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner=False, max_entries=10)
 def run_fpgrowth(df_hash: str, _df: pd.DataFrame,
@@ -360,28 +347,37 @@ def run_fpgrowth(df_hash: str, _df: pd.DataFrame,
     te       = TransactionEncoder()
     te_array = te.fit_transform(basket["Produk"])
     df_enc   = pd.DataFrame(te_array, columns=te.columns_)
+
     fi = fpgrowth(df_enc, min_support=min_support, use_colnames=True)
     if fi.empty:
         return pd.DataFrame(), pd.DataFrame(), basket
+
     fi["jumlah_item"]  = fi["itemsets"].apply(len)
     fi["itemsets_str"] = fi["itemsets"].apply(lambda x: " + ".join(sorted(x)))
     fi["support_pct"]  = (fi["support"] * 100).round(2)
     fi = fi.sort_values(["jumlah_item","support"], ascending=[True,False]).reset_index(drop=True)
     fi.index += 1
+
     rules = association_rules(fi, metric="confidence", min_threshold=min_confidence)
     if rules.empty:
         return fi, pd.DataFrame(), basket
+
     rules["antecedents_str"] = rules["antecedents"].apply(lambda x: " + ".join(sorted(x)))
     rules["consequents_str"] = rules["consequents"].apply(lambda x: " + ".join(sorted(x)))
-    for col in ["support","confidence","lift"]:
-        rules[col] = rules[col].round(4)
-    rules = rules.sort_values("lift", ascending=False).reset_index(drop=True)
+
+    # ── hanya bulatkan support & confidence, buang lift
+    rules["support"]    = rules["support"].round(4)
+    rules["confidence"] = rules["confidence"].round(4)
+
+    # ── urutkan berdasarkan confidence (bukan lift)
+    rules = rules.sort_values("confidence", ascending=False).reset_index(drop=True)
     rules.index += 1
+
     return fi, rules, basket
 
 
 # ─────────────────────────────────────────────────────────────
-# EXPORT EXCEL
+# EXPORT EXCEL  (tanpa kolom Lift)
 # ─────────────────────────────────────────────────────────────
 def to_excel(fi: pd.DataFrame, rules: pd.DataFrame, df_raw: pd.DataFrame) -> bytes:
     buf = io.BytesIO()
@@ -390,13 +386,16 @@ def to_excel(fi: pd.DataFrame, rules: pd.DataFrame, df_raw: pd.DataFrame) -> byt
             "itemsets_str":"Itemset","support":"Support (Desimal)",
             "support_pct":"Support (%)","jumlah_item":"Jumlah Item"})
         tfi.to_excel(writer, sheet_name="Frequent Itemset", index=True)
+
         if not rules.empty:
-            tr = rules[["antecedents_str","consequents_str","support","confidence","lift"]].rename(columns={
+            # ── export hanya support & confidence
+            tr = rules[["antecedents_str","consequents_str","support","confidence"]].rename(columns={
                 "antecedents_str":"Jika Membeli","consequents_str":"Maka Membeli",
-                "support":"Support","confidence":"Confidence","lift":"Lift Ratio"})
+                "support":"Support","confidence":"Confidence"})
             tr.to_excel(writer, sheet_name="Aturan Asosiasi", index=True)
+
         dr = df_raw[["No_Faktur","Tanggal","Nama_Barang","QTY","Harga"]].copy()
-        if pd.api.types.is_datetime64_any_dtype(dr.get("Tanggal",pd.Series())):
+        if pd.api.types.is_datetime64_any_dtype(dr.get("Tanggal", pd.Series())):
             dr["Tanggal"] = dr["Tanggal"].dt.strftime("%d/%m/%Y")
         dr.to_excel(writer, sheet_name="Data Transaksi", index=False)
     return buf.getvalue()
@@ -423,21 +422,22 @@ with st.sidebar:
     )
     st.markdown("---")
     st.markdown("**🎚️ Parameter FP-Growth**")
-   # UNTUK ATUR MINIMUM SUPPORT DAN CONFIDENCE
-    support_pct    = st.slider("Minimum Support (%)", 
-                            min_value=0.1, max_value=10.0, 
-                            value=0.5, step=0.1,
-                            help="Untuk 6.000+ transaksi, coba 0.1%–1%")
+    support_pct    = st.slider("Minimum Support (%)",
+                               min_value=0.1, max_value=10.0,
+                               value=0.5, step=0.1,
+                               help="Untuk 6.000+ transaksi, coba 0.1%–1%")
     min_support    = support_pct / 100
 
-    min_confidence = st.slider("Minimum Confidence (%)", 
-                            10, 80, 20, 5,
-                            help="Disarankan 20%–40% untuk skripsi") / 100
+    min_confidence = st.slider("Minimum Confidence (%)",
+                               10, 80, 20, 5,
+                               help="Disarankan 20%–40% untuk skripsi") / 100
     st.markdown("---")
     st.markdown("**🔍 Filter**")
     filter_itemset = st.selectbox("Tampilkan itemset",
                                   ["Semua","1-itemset saja","2-itemset saja","3-itemset ke atas"])
-    min_lift = st.slider("Lift minimum", 1.0, 10.0, 1.0, 0.5)
+    # ── slider min_confidence untuk filter aturan (ganti min_lift)
+    min_conf_filter = st.slider("Confidence minimum filter (%)", 0, 80, 0, 5,
+                                help="Filter tambahan confidence pada tabel aturan") / 100
     st.markdown("---")
     with st.expander("📋 Format file yang didukung"):
         st.markdown("""
@@ -604,7 +604,9 @@ with tab2:
     if rules.empty:
         st.warning(f"⚠️ Tidak ada aturan dengan confidence {min_confidence*100:.0f}%. Coba kurangi nilai di sidebar.")
     else:
-        rd = rules[rules["lift"] >= min_lift].copy()
+        # ── filter hanya berdasarkan confidence (tidak ada lift)
+        rd = rules[rules["confidence"] >= min_conf_filter].copy()
+
         cari2 = st.text_input("🔍 Cari dalam aturan", placeholder="Contoh: rinso, apollo…", key="s_r")
         if cari2:
             k = cari2.upper()
@@ -616,12 +618,12 @@ with tab2:
             <div class="section-line"></div>
         </div>""", unsafe_allow_html=True)
 
-        tr = rd[["antecedents_str","consequents_str","support","confidence","lift"]].rename(columns={
+        # ── tabel tanpa kolom Lift
+        tr = rd[["antecedents_str","consequents_str","support","confidence"]].rename(columns={
             "antecedents_str":"Jika Membeli","consequents_str":"Maka Membeli",
-            "support":"Support","confidence":"Confidence","lift":"Lift Ratio"})
+            "support":"Support","confidence":"Confidence"})
         tr["Support"]    = tr["Support"].apply(lambda x: f"{x:.4f}")
         tr["Confidence"] = tr["Confidence"].apply(lambda x: f"{x*100:.1f}%")
-        tr["Lift Ratio"] = tr["Lift Ratio"].apply(lambda x: f"{x:.4f}")
         st.dataframe(tr, use_container_width=True, height=360)
 
         ca2, cb2, _ = st.columns([2,2,5])
@@ -634,35 +636,35 @@ with tab2:
                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",key="dl_xl2")
 
         st.markdown("---")
-        st.markdown("**✨ Top 5 Aturan Terkuat (Lift Tertinggi)**")
+        st.markdown("**✨ Top 5 Aturan Terkuat (Confidence Tertinggi)**")
         for _, row in rd.head(5).iterrows():
-            lift_v = float(row["lift"])
-            icon   = "🔥" if lift_v>=2 else ("⚡" if lift_v>=1.5 else "·")
+            conf_v = float(row["confidence"])
+            icon   = "🔥" if conf_v >= 0.6 else ("⚡" if conf_v >= 0.4 else "·")
             st.markdown(f"""<div class="rule-card">
                 <span class="rule-item">{row['antecedents_str']}</span>
                 <span class="rule-arrow">→</span>
                 <span class="rule-item">{row['consequents_str']}</span>
                 <div class="rule-badges">
                     <span class="badge badge-sup">Sup {float(row['support'])*100:.1f}%</span>
-                    <span class="badge badge-conf">Conf {float(row['confidence'])*100:.1f}%</span>
-                    <span class="badge badge-lift">{icon} Lift {lift_v:.2f}</span>
+                    <span class="badge badge-conf">{icon} Conf {conf_v*100:.1f}%</span>
                 </div>
             </div>""", unsafe_allow_html=True)
 
         with st.expander("📝 Ringkasan untuk Pemilik Toko"):
             best = rd.iloc[0]
-            sup_b, conf_b, lift_b = float(best["support"]), float(best["confidence"]), float(best["lift"])
+            sup_b  = float(best["support"])
+            conf_b = float(best["confidence"])
             st.markdown(f"""
 Dataset: **{n_txn:,} transaksi** · **{n_prod:,} produk**{f" · {period}" if has_date else ""}
 
 FP-Growth (support **{min_support*100:.0f}%**, confidence **{min_confidence*100:.0f}%**):
 → **{len(fi)} frequent itemset** dan **{len(rules)} aturan asosiasi**
 
-Aturan lift tertinggi:
+Aturan confidence tertinggi:
 > **{best['antecedents_str']} → {best['consequents_str']}**
-> Support = {sup_b:.4f} ({sup_b*100:.2f}%) · Confidence = {conf_b:.4f} ({conf_b*100:.2f}%) · Lift = {lift_b:.4f}
+> Support = {sup_b:.4f} ({sup_b*100:.2f}%) · Confidence = {conf_b:.4f} ({conf_b*100:.2f}%)
 
-Lift > 1 menunjukkan kedua produk cenderung dibeli bersamaan.
+Confidence menunjukkan seberapa sering produk kedua dibeli ketika produk pertama dibeli.
             """)
 
 

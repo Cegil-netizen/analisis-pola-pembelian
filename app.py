@@ -32,7 +32,7 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif; }
-.stApp { background: #0f1117; }
+.stApp { background: #87CEEB; }
 [data-testid="stSidebar"] { background: #161b27 !important; border-right: 1px solid #1e2535; }
 [data-testid="stSidebar"] * { color: #c8d0e0 !important; }
 .hero-banner {

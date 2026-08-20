@@ -9,6 +9,7 @@ Mendukung berbagai format input:
 import streamlit as st
 import pandas as pd
 import numpy as np
+import plotly.express as px
 import re, csv, io, warnings
 from mlxtend.preprocessing import TransactionEncoder
 from mlxtend.frequent_patterns import fpgrowth, association_rules
@@ -590,12 +591,41 @@ with tab1:
                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_xl1") 
     
     st.markdown("---")
-    st.markdown("**📊 Top 10 Produk Paling Sering Muncul**")
-    top10 = fi[fi["jumlah_item"]==1].head(10)[["itemsets_str","support_pct"]].copy()
-    top10.columns = ["Nama Barang","Support (%)"]
-    if not top10.empty:
-        st.bar_chart(top10.set_index("Nama Barang"), height=240)
+st.markdown("**📊 Top 10 Produk Paling Sering Muncul**")
 
+top10 = fi[fi["jumlah_item"] == 1].head(10)[
+    ["itemsets_str", "support_pct"]
+].copy()
+
+top10.columns = ["Nama Barang", "Support (%)"]
+
+if not top10.empty:
+    fig = px.bar(
+        top10,
+        x="Nama Barang",
+        y="Support (%)",
+        color="Nama Barang",
+        text="Support (%)",
+        title="Top 10 Produk Paling Sering Muncul"
+    )
+
+    fig.update_traces(
+        texttemplate="%{text:.2f}%",
+        textposition="outside"
+    )
+
+    fig.update_layout(
+        height=400,
+        showlegend=False,
+        xaxis_title="Nama Barang",
+        yaxis_title="Support (%)",
+        margin=dict(t=60, b=100, l=50, r=30)
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
 # ════════ TAB 2 ════════
 with tab2:
     if rules.empty:

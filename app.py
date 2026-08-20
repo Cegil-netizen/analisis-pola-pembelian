@@ -9,8 +9,8 @@ Mendukung berbagai format input:
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
 import re, csv, io, warnings
+import plotly.express as px
 from mlxtend.preprocessing import TransactionEncoder
 from mlxtend.frequent_patterns import fpgrowth, association_rules
 
@@ -409,6 +409,61 @@ def metric_card(label, value, sub, cls):
             f'<div class="metric-sub">{sub}</div></div>')
 
 
+# ─────────────────────────────────────────────────────────────
+# HELPER — TABEL & DIAGRAM BERWARNA (BARU)
+# ─────────────────────────────────────────────────────────────
+# Palet warna-warni yang dipakai berulang untuk chart & tabel
+PALET_WARNA = px.colors.qualitative.Bold + px.colors.qualitative.Vivid
+
+
+def tampilkan_chart_top10(top10: pd.DataFrame, key: str):
+    """Bar chart top 10 produk dengan warna berbeda-beda per batang (bukan 1 warna polos)."""
+    if top10.empty:
+        return
+    data = top10.sort_values("Support (%)", ascending=True)
+    fig = px.bar(
+        data,
+        x="Support (%)",
+        y="Nama Barang",
+        orientation="h",
+        color="Nama Barang",
+        color_discrete_sequence=PALET_WARNA,
+        text="Support (%)",
+    )
+    fig.update_traces(texttemplate="%{text:.2f}%", textposition="outside", cliponaxis=False)
+    fig.update_layout(
+        showlegend=False,
+        height=360,
+        plot_bgcolor="#161b27",
+        paper_bgcolor="#161b27",
+        font_color="#c8d0e0",
+        margin=dict(l=10, r=30, t=10, b=10),
+        xaxis=dict(gridcolor="#1e2535", title="Support (%)"),
+        yaxis=dict(gridcolor="#1e2535", title=""),
+    )
+    st.plotly_chart(fig, use_container_width=True, key=key)
+
+
+def style_tabel_frequent_itemset(tfi: pd.DataFrame):
+    """Beri gradasi warna pada tabel Frequent Itemset (warna berbeda sesuai besar nilai)."""
+    return (
+        tfi.style
+        .background_gradient(subset=["Support (%)"], cmap="RdYlGn")
+        .background_gradient(subset=["Jumlah Item"], cmap="Blues")
+        .format({"Support (%)": "{:.2f}%", "Support (Desimal)": "{:.4f}"})
+    )
+
+
+def style_tabel_aturan_asosiasi(tr: pd.DataFrame):
+    """Beri gradasi warna pada tabel Aturan Asosiasi (Support & Confidence berwarna)."""
+    return (
+        tr.style
+        .background_gradient(subset=["Support"], cmap="Blues")
+        .background_gradient(subset=["Confidence"], cmap="Greens")
+        .format({"Support": "{:.4f}", "Confidence": "{:.1%}"})
+    )
+
+
 # ═════════════════════════════════════════════════════════════
 # SIDEBAR
 # ═════════════════════════════════════════════════════════════
@@ -578,12 +633,14 @@ with tab1:
 
     tfi = fi_disp[["itemsets_str","support_pct","support","jumlah_item"]].rename(columns={
         "itemsets_str":"Itemset (Nama Barang)","support_pct":"Support (%)","support":"Support (Desimal)","jumlah_item":"Jumlah Item"})
-    tfi["Support (%)"] = tfi["Support (%)"].apply(lambda x: f"{x:.2f}%")
-    st.dataframe(tfi, use_container_width=True, height=400)
+    # ── Tabel berwarna (gradasi warna sesuai besar Support & Jumlah Item)
+    st.dataframe(style_tabel_frequent_itemset(tfi), use_container_width=True, height=400)
 
     ca, cb, _ = st.columns([2,2,5])
     with ca:
-        st.download_button("⬇️ CSV", tfi.to_csv(index=True).encode("utf-8-sig"),
+        tfi_csv = tfi.copy()
+        tfi_csv["Support (%)"] = tfi_csv["Support (%)"].apply(lambda x: f"{x:.2f}%")
+        st.download_button("⬇️ CSV", tfi_csv.to_csv(index=True).encode("utf-8-sig"),
                            "frequent_itemset.csv", "text/csv", key="dl_fi")
     with cb:
         st.download_button("⬇️ Excel (Semua)", to_excel(fi, rules, df_raw),
@@ -591,41 +648,12 @@ with tab1:
                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_xl1") 
     
     st.markdown("---")
-st.markdown("**📊 Top 10 Produk Paling Sering Muncul**")
+    st.markdown("**📊 Top 10 Produk Paling Sering Muncul**")
+    top10 = fi[fi["jumlah_item"]==1].head(10)[["itemsets_str","support_pct"]].copy()
+    top10.columns = ["Nama Barang","Support (%)"]
+    # ── Diagram berwarna-warni (satu warna berbeda untuk tiap produk)
+    tampilkan_chart_top10(top10, key="chart_top10_tab1")
 
-top10 = fi[fi["jumlah_item"] == 1].head(10)[
-    ["itemsets_str", "support_pct"]
-].copy()
-
-top10.columns = ["Nama Barang", "Support (%)"]
-
-if not top10.empty:
-    fig = px.bar(
-        top10,
-        x="Nama Barang",
-        y="Support (%)",
-        color="Nama Barang",
-        text="Support (%)",
-        title="Top 10 Produk Paling Sering Muncul"
-    )
-
-    fig.update_traces(
-        texttemplate="%{text:.2f}%",
-        textposition="outside"
-    )
-
-    fig.update_layout(
-        height=400,
-        showlegend=False,
-        xaxis_title="Nama Barang",
-        yaxis_title="Support (%)",
-        margin=dict(t=60, b=100, l=50, r=30)
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
 # ════════ TAB 2 ════════
 with tab2:
     if rules.empty:
@@ -648,13 +676,15 @@ with tab2:
         tr = rd[["antecedents_str","consequents_str","support","confidence"]].rename(columns={
             "antecedents_str":"Jika Membeli","consequents_str":"Maka Membeli",
             "support":"Support","confidence":"Confidence"})
-        tr["Support"]    = tr["Support"].apply(lambda x: f"{x:.4f}")
-        tr["Confidence"] = tr["Confidence"].apply(lambda x: f"{x*100:.1f}%")
-        st.dataframe(tr, use_container_width=True, height=360)
+        # ── Tabel berwarna (gradasi warna sesuai besar Support & Confidence)
+        st.dataframe(style_tabel_aturan_asosiasi(tr), use_container_width=True, height=360)
 
         ca2, cb2, _ = st.columns([2,2,5])
         with ca2:
-            st.download_button("⬇️ CSV", tr.to_csv(index=True).encode("utf-8-sig"),
+            tr_csv = tr.copy()
+            tr_csv["Support"]    = tr_csv["Support"].apply(lambda x: f"{x:.4f}")
+            tr_csv["Confidence"] = tr_csv["Confidence"].apply(lambda x: f"{x*100:.1f}%")
+            st.download_button("⬇️ CSV", tr_csv.to_csv(index=True).encode("utf-8-sig"),
                                "aturan_asosiasi.csv","text/csv",key="dl_r")
         with cb2:
             st.download_button("⬇️ Excel (Semua)", to_excel(fi,rules,df_raw),
@@ -665,8 +695,8 @@ with tab2:
     st.markdown("**📊 Top 10 Produk Paling Sering Muncul**")
     top10 = fi[fi["jumlah_item"]==1].head(10)[["itemsets_str","support_pct"]].copy()
     top10.columns = ["Nama Barang","Support (%)"]
-    if not top10.empty:
-        st.bar_chart(top10.set_index("Nama Barang"), height=240)
+    # ── Diagram berwarna-warni (satu warna berbeda untuk tiap produk)
+    tampilkan_chart_top10(top10, key="chart_top10_tab2")
 
 # ════════ TAB 3 ════════
 with tab3:

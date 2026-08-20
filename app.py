@@ -662,37 +662,11 @@ with tab2:
                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",key="dl_xl2")
 
         st.markdown("---")
-        st.markdown("**✨ Top 5 Aturan Terkuat (Confidence Tertinggi)**")
-        for _, row in rd.head(5).iterrows():
-            conf_v = float(row["confidence"])
-            icon   = "🔥" if conf_v >= 0.6 else ("⚡" if conf_v >= 0.4 else "·")
-            st.markdown(f"""<div class="rule-card">
-                <span class="rule-item">{row['antecedents_str']}</span>
-                <span class="rule-arrow">→</span>
-                <span class="rule-item">{row['consequents_str']}</span>
-                <div class="rule-badges">
-                    <span class="badge badge-sup">Sup {float(row['support'])*100:.1f}%</span>
-                    <span class="badge badge-conf">{icon} Conf {conf_v*100:.1f}%</span>
-                </div>
-            </div>""", unsafe_allow_html=True)
-
-        with st.expander("📝 Ringkasan untuk Pemilik Toko"):
-            best = rd.iloc[0]
-            sup_b  = float(best["support"])
-            conf_b = float(best["confidence"])
-            st.markdown(f"""
-Dataset: **{n_txn:,} transaksi** · **{n_prod:,} produk**{f" · {period}" if has_date else ""}
-
-FP-Growth (support **{min_support*100:.0f}%**, confidence **{min_confidence*100:.0f}%**):
-→ **{len(fi)} frequent itemset** dan **{len(rules)} aturan asosiasi**
-
-Aturan confidence tertinggi:
-> **{best['antecedents_str']} → {best['consequents_str']}**
-> Support = {sup_b:.4f} ({sup_b*100:.2f}%) · Confidence = {conf_b:.4f} ({conf_b*100:.2f}%)
-
-Confidence menunjukkan seberapa sering produk kedua dibeli ketika produk pertama dibeli.
-            """)
-
+    st.markdown("**📊 Top 10 Produk Paling Sering Muncul**")
+    top10 = fi[fi["jumlah_item"]==1].head(10)[["itemsets_str","support_pct"]].copy()
+    top10.columns = ["Nama Barang","Support (%)"]
+    if not top10.empty:
+        st.bar_chart(top10.set_index("Nama Barang"), height=240)
 
 # ════════ TAB 3 ════════
 with tab3:

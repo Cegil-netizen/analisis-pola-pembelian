@@ -467,7 +467,7 @@ Nama kolom dikenali otomatis:
 st.markdown("""
 <div class="hero-banner">
     <div class="hero-badge">🛒 Data Mining · FP-Growth</div>
-    <div class="hero-title">Analisis Pola Pembelian</div>
+    <div class="hero-title">Analisis Pola Pembelian barang</div>
     <p class="hero-sub">Upload CSV atau Excel laporan kasir / data transaksi → analisis otomatis → download Excel</p>
 </div>
 """, unsafe_allow_html=True)

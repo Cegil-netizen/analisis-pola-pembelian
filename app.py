@@ -588,7 +588,8 @@ with tab1:
         st.download_button("⬇️ Excel (Semua)", to_excel(fi, rules, df_raw),
                            "Hasil_FP_Growth.xlsx",
                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_xl1") 
-st.markdown("---")
+    
+    st.markdown("---")
     st.markdown("**📊 Top 10 Produk Paling Sering Muncul**")
     top10 = fi[fi["jumlah_item"]==1].head(10)[["itemsets_str","support_pct"]].copy()
     top10.columns = ["Nama Barang","Support (%)"]
